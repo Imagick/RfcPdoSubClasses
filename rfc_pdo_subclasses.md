@@ -1,78 +1,114 @@
-# PHP RFC: Your Title Here 
+# PHP RFC: PDO driver specific sub-classes
   * Version: 0.9
-  * Date: 2013-02-24 (use today's date here)
-  * Author: Your Name, your_email_address@example.com
-  * Status: Draft (or Under Discussion or Accepted or Declined)
-  * First Published at: http://wiki.php.net/rfc/your_rfc_name
-
-This is a suggested template for PHP Request for Comments (RFCs). Change this template to suit your RFC.  Not all RFCs need to be tightly specified.  Not all RFCs need all the sections below.
-
-Read https://wiki.php.net/rfc/howto carefully!
+  * Date: 2022-06-04
+  * Author: Danack
+  * Status: Draft
+  * First Published at: http://wiki.php.net/rfc/PDOSubclasses
 
 ## Introduction 
-The elevator pitch for the RFC. The first paragraph of this section will be slightly larger to give it emphasis; please write a good introduction.
+
+PDO is a generic database class. Some of the databases it supports have functionality that is specific to that database.
+
+For example, when connected to an SQLite database, the sqlite specific function [PDO::sqliteCreateFunction](https://www.php.net/manual/en/pdo.sqlitecreatefunction.php) is available.
+
+This is a slightly shitty way of doing things. And is an example of code that was snuck in before the RFC [process was in place.](https://github.com/php/php-src/commit/41421c7d7aacd831d03f008735c90bdf02bc196b)
+
+This RFC continues [a discussion on internals](https://news-web.php.net/php.internals/100773) of reimplementing this functionality 'properly'.
 
 ## Proposal 
-All the features and examples of the proposal.
 
-To [paraphrase Zeev Suraski](http://news.php.net/php.internals/66051), explain hows the proposal brings substantial value to be considered
-for inclusion in one of the world's most popular programming languages.
+The proposal has three parts:
 
-Remember that the RFC contents should be easily reusable in the PHP Documentation.
+* Add new subclasses of PDO
+* Add PDO::connect to be able to create them
+* Add DB specific function to those subclasses.
 
-If applicable, you may wish to use the language specification as a reference.
+### Add new subclasses of PDO
+
+There will be one subclasses for each known PDO support DB connection:
+
+* PDODblib
+* PDOFirebird
+* PDOMysql
+* PDOOci
+* PDOOdbc
+* PDOpgsql  - definitely
+* PDOsqlite - definitely
+
+Each of these subclasses will expose functionality that exists that is peculiar to that DB, and not present in the generic PDO class. e.g. PDOSqlite::createFunction() should be there rather than on [PDO::sqliteCreateFunction](https://www.php.net/manual/en/pdo.sqlitecreatefunction.php).
+
+### Add a way of creating them through PDF static factory method
+
+Add a static factory method to PDO called `connect`. During the connect process, the exact type of database being connected to will be checked, and if it is a DB that has a specific sub-class, return that sub-class instead of a generic PDO object
+
+```
+class PDO
+{
+    public static function connect(string $dsn [, string $username [, string $password [, array $options ]]]) {
+
+        if (connecting to SQLite DB) {
+            return new PDOSqlite(...);
+        }
+
+
+        return new PDO(...);
+    }
+}
+```
+
+PDO::connect will return the appropriate sub-class when connecting to specific type of DB.
+
+
+### Add DB specific function to those subclasses.
+
 
 ## Backward Incompatible Changes 
-What breaks, and what is the justification for it?
+
+None known. It might be a bit of a pain in the arse for people who are extending PDO class directly
+
 
 ## Proposed PHP Version(s) 
-List the proposed PHP versions that the feature will be included in.  Use relative versions such as "next PHP 8.x" or "next PHP 8.x.y".
 
-## RFC Impact 
-### To SAPIs 
-Describe the impact to CLI, Development web server, embedded PHP etc.
-
-### To Existing Extensions 
-Will existing extensions be affected?
-
-### To Opcache 
-It is necessary to develop RFC's with opcache in mind, since opcache is a core extension distributed with PHP.
-
-Please explain how you have verified your RFC's compatibility with opcache.
-
-### New Constants 
-Describe any new constants so they can be accurately and comprehensively explained in the PHP documentation.
-
-### php.ini Defaults 
-If there are any php.ini settings then list:
-  * hardcoded default values
-  * php.ini-development values
-  * php.ini-production values
+PHP 8.2
 
 ## Open Issues 
-Make sure there are no open issues when the vote starts!
+
+There are the known current issues.
+
+### Should the sub-classes only be avaiable when support for that DB is compiled in?
+
+e.g. should PDOSqlite exist if PHP was compiled without PDO_SQLITE compilted in? Probaby not.
+
+### Create all DB sub-classes?
+
+Should all DBs have sub-classes created now, or should they be added when someone requests it?
+
+### When to deprecate old function on PDO
+
+The method PDO::sqliteCreateFunction should probably be deprecated and removed at 'some point'. Although this cleanup should happen, the position of this RFC is that it's very low priority.
+
+8.2 - PDO subclassses become available
+9.0 - calls to PDO::sqliteCreateFunction start raising deprecation notice.
+10.0 - method PDO::sqliteCreateFunction is removed, and that functionality can only be accessed through PDOSqlite
+
 
 ## Unaffected PHP Functionality 
-List existing areas/features of PHP that will not be changed by the RFC.
 
-This helps avoid any ambiguity, shows that you have thought deeply about the RFC's impact, and helps reduces mail list noise.
+Everything else
 
 ## Future Scope 
-This section details areas where the feature might be improved in future, but that are not currently proposed in this RFC.
+
+Any DB specific stuff known about that were too much work to implement?
 
 ## Proposed Voting Choices 
-Include these so readers know where you are heading and can discuss the proposed voting options.
+
+Accept the RFC as proposed 2/3 required.
 
 ## Patches and Tests 
+
 Links to any external patches and tests go here.
 
-If there is no patch, make it clear who will create a patch, or whether a volunteer to help with implementation is needed.
-
-Make it clear if the patch is intended to be the final patch, or is just a prototype.
-
-For changes affecting the core language, you should also provide a patch for the language specification.
-
-## Implementation 
+## Implementation
 After the project is implemented, this section should contain
   - the version(s) it was merged into
   - a link to the git commit(s)
