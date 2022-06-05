@@ -11,7 +11,7 @@ PDO is a generic database class. Some of the databases it supports have function
 
 For example, when connected to an SQLite database, the sqlite specific function [PDO::sqliteCreateFunction](https://www.php.net/manual/en/pdo.sqlitecreatefunction.php) is available.
 
-This is a slightly shitty way of doing things. And is an example of code that was snuck in before the RFC [process was in place.](https://github.com/php/php-src/commit/41421c7d7aacd831d03f008735c90bdf02bc196b)
+This is a slightly terrible way of doing things. And is an example of code that was snuck in before the RFC [process was in place.](https://github.com/php/php-src/commit/41421c7d7aacd831d03f008735c90bdf02bc196b)
 
 This RFC continues [a discussion on internals](https://news-web.php.net/php.internals/100773) of reimplementing this functionality 'properly'.
 
@@ -32,8 +32,8 @@ There will be one subclasses for each known PDO support DB connection:
 * PDOMysql
 * PDOOci
 * PDOOdbc
-* PDOpgsql  - definitely
-* PDOsqlite - definitely
+* PDOPgsql  - definitely
+* PDOSqlite - definitely
 
 Each of these subclasses will expose functionality that exists that is peculiar to that DB, and not present in the generic PDO class. e.g. PDOSqlite::createFunction() should be there rather than on [PDO::sqliteCreateFunction](https://www.php.net/manual/en/pdo.sqlitecreatefunction.php).
 
@@ -64,7 +64,7 @@ PDO::connect will return the appropriate sub-class when connecting to specific t
 
 ## Backward Incompatible Changes 
 
-None known. It might be a bit of a pain in the arse for people who are extending PDO class directly
+None known. It might be inconvenient for people who are extending PDO class directly, and would like to extend the specific types. They would need to write their own connect functions, that wrap and proxy those specific types.
 
 
 ## Proposed PHP Version(s) 
@@ -91,6 +91,7 @@ The method PDO::sqliteCreateFunction should probably be deprecated and removed a
 9.0 - calls to PDO::sqliteCreateFunction start raising deprecation notice.
 10.0 - method PDO::sqliteCreateFunction is removed, and that functionality can only be accessed through PDOSqlite
 
+Removing the methods that magically exist or not depending on the specific driver created would save some complication in the PDO code. So although there's not benefit in userland for deprecating the existing magic methods, there may be a complexity saving in maintenance.
 
 ## Unaffected PHP Functionality 
 
